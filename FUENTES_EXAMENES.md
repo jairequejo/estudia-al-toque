@@ -1,6 +1,6 @@
 # Cuadernillos oficiales para Educación Física
 
-Consulta realizada el 6 de octubre de 2026. Para postulantes de Cajamarca, la **Prueba Nacional** de nombramiento se aplica dentro del mismo concurso nacional; no encontré un cuadernillo oficial exclusivo de Cajamarca. La [norma técnica del concurso 2024](https://repositorio.minedu.gob.pe/handle/20.500.12799/10447) describe la aplicación de la Prueba Nacional en todas las regiones. La región y UGEL se consideran en la etapa descentralizada y la adjudicación. Estos enlaces son fuentes de estudio y referencia, no contenido escrito por Edwin Requejos.
+Consulta realizada el 6 de octubre de 2026. Para postulantes de Cajamarca, la **Prueba Nacional** de nombramiento se aplica dentro del mismo concurso nacional; no encontré un cuadernillo oficial exclusivo de Cajamarca. La [norma técnica del concurso 2024](https://repositorio.minedu.gob.pe/handle/20.500.12799/10447) describe la aplicación de la Prueba Nacional en todas las regiones. La región y UGEL se consideran en la etapa descentralizada y la adjudicación. Estos enlaces son fuentes de estudio y referencia, no contenido escrito por Edwin Requejo.
 
 ## Concurso de ingreso a la Carrera Pública Magisterial 2024
 

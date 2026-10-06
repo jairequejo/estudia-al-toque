@@ -2,7 +2,7 @@
 
 ## Estado de esta versión
 
-La app funciona como **demostración local** sin Supabase. Sus nueve preguntas tienen tres alternativas (A/B/C) y son contenido original de demostración, no exámenes oficiales ni material de Edwin Requejos. El simulacro es una versión abreviada para probar el flujo, no reproduce la cantidad ni duración de la prueba oficial. El avance se guarda en `localStorage` del navegador; cambiar de navegador o borrar sus datos elimina ese avance. No hay registro ni recuperación de contraseña en modo demo.
+La app funciona como **demostración local** sin Supabase. Sus nueve preguntas tienen tres alternativas (A/B/C) y son contenido original de demostración, no exámenes oficiales ni material de Edwin Requejo. El simulacro es una versión abreviada para probar el flujo, no reproduce la cantidad ni duración de la prueba oficial. El avance se guarda en `localStorage` del navegador; cambiar de navegador o borrar sus datos elimina ese avance. No hay registro ni recuperación de contraseña en modo demo.
 
 El SQL y el adaptador de datos están preparados, pero **no se ha creado ni conectado un proyecto Supabase**. La clave publicable y la URL son las únicas variables previstas para el navegador. Nunca colocar `service_role`, secret key, contraseña de base de datos ni tokens personales en variables `VITE_`.
 

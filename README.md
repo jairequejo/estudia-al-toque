@@ -1,10 +1,10 @@
-# Educación Física · Edwin Requejos
+# Educación Física · Edwin Requejo
 
 Prototipo de preparación para el nombramiento docente en Educación Física en Perú. La identidad visual y el nombre público siguen en revisión.
 
 ## Estado
 
-- Funciona como **demo local** con nueve preguntas originales de muestra. No son preguntas oficiales ni material proporcionado o revisado por Edwin Requejos.
+- Funciona como **demo local** con nueve preguntas originales de muestra. No son preguntas oficiales ni material proporcionado o revisado por Edwin Requejo.
 - La práctica, los retos, el repaso de errores y el simulacro usan datos de demostración. El avance se guarda en el navegador con `localStorage`.
 - El acceso por correo y la sincronización entre dispositivos requieren conectar un proyecto Supabase elegido para esta aplicación. No están activos en esta demo.
 - No hay audios cargados todavía. Cada tema admite una URL de audio cuando exista contenido autorizado.
