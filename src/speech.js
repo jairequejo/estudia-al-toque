@@ -14,12 +14,13 @@ export function availableSpanishVoices() {
 export function rankVoice(voice) {
   const name = voice.name.toLowerCase();
   const lang = voice.lang.toLowerCase();
-  return (/(natural|neural|premium|enhanced)/.test(name) ? 12 : 0)
-    + (/google/.test(name) ? 5 : 0)
-    + (/microsoft/.test(name) ? 4 : 0)
-    + (lang === 'es-pe' ? 3 : 0)
-    + (voice.localService === false ? 2 : 0)
-    - (/(compact|e-speak|espeak)/.test(name) ? 5 : 0);
+  return (voice.localService === false ? 20 : 0) // Cloud voices are vasty superior and less robotic
+    + (/(natural|neural|premium|enhanced|multilingual)/.test(name) ? 15 : 0)
+    + (/google/.test(name) ? 6 : 0)
+    + (/microsoft/.test(name) ? 5 : 0)
+    + (lang === 'es-pe' ? 4 : 0)
+    + (lang === 'es-mx' ? 2 : 0)
+    - (/(compact|e-speak|espeak|android)/.test(name) ? 10 : 0);
 }
 
 export function stopSpeech() {
@@ -37,7 +38,8 @@ export function readQuestion(question, { force = false } = {}) {
   const options = question.options.map((option, index) => `Opción ${String.fromCharCode(65 + index)}. ${option}`).join('. ');
   const utterance = new SpeechSynthesisUtterance(`${question.prompt}. ${options}`);
   utterance.lang = 'es-PE';
-  utterance.rate = 1;
+  utterance.rate = 0.95;
+  utterance.pitch = 1;
   const voices = availableSpanishVoices();
   utterance.voice = voices.find(voice => voice.name === preferredVoice()) || voices.sort((a, b) => rankVoice(b) - rankVoice(a))[0] || null;
   window.speechSynthesis.speak(utterance);
