@@ -4,8 +4,10 @@ Prototipo de preparación para el nombramiento docente en Educación Física en 
 
 ## Estado
 
-- Funciona como **demo local** con nueve preguntas originales de muestra. No son preguntas oficiales ni material proporcionado o revisado por Edwin Requejo.
-- La práctica, los retos, el repaso de errores y el simulacro usan datos de demostración. El avance se guarda en el navegador con `localStorage`.
+- Funciona como **demo local** con 27 preguntas originales y tres simulacros de nueve preguntas cada uno. No son preguntas oficiales ni material proporcionado o revisado por Edwin Requejo.
+- La práctica, los retos, los repasos espaciados por tema y los simulacros usan datos de demostración. El avance se guarda en el navegador con `localStorage`.
+- La PWA permite consultar e instalar nuevas versiones desde Configuración. La lectura automática de preguntas está activada por defecto y usa las voces disponibles en el dispositivo.
+- Los avisos de repaso requieren permiso del navegador y funcionan mientras la app está abierta. Para enviar avisos con la app cerrada falta un servicio de push.
 - El acceso por correo y la sincronización entre dispositivos requieren conectar un proyecto Supabase elegido para esta aplicación. No están activos en esta demo.
 - No hay audios cargados todavía. Cada tema admite una URL de audio cuando exista contenido autorizado.
 

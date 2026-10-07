@@ -1,4 +1,5 @@
 // Contenido original de demostración. No representa preguntas oficiales.
+import { extraQuestions } from './demo-extra.js';
 export const demoCatalog = {
   courses: [
     {
@@ -6,9 +7,9 @@ export const demoCatalog = {
       title: 'Educación Física',
       description: 'Preparación de muestra para el nombramiento docente en Perú. Preguntas originales de demostración, no oficiales.',
       topics: [
-        { id: 'planificacion', title: 'Planificación de la sesión', description: 'Propósitos, actividades y evaluación formativa.', questionCount: 3, audioUrl: null },
-        { id: 'movimiento', title: 'Movimiento y salud', description: 'Seguridad, progresión y hábitos de actividad física.', questionCount: 3, audioUrl: null },
-        { id: 'convivencia', title: 'Juego y convivencia', description: 'Participación, acuerdos e inclusión.', questionCount: 3, audioUrl: null },
+        { id: 'planificacion', title: 'Planificación de la sesión', description: 'Propósitos, actividades y evaluación formativa.', questionCount: 9, audioUrl: null },
+        { id: 'movimiento', title: 'Movimiento y salud', description: 'Seguridad, progresión y hábitos de actividad física.', questionCount: 9, audioUrl: null },
+        { id: 'convivencia', title: 'Juego y convivencia', description: 'Participación, acuerdos e inclusión.', questionCount: 9, audioUrl: null },
       ],
     },
   ],
@@ -70,3 +71,10 @@ export const demoQuestions = [
     optionExplanations: ['Excluye una oportunidad de aprendizaje.', 'Correcta: adapta el medio sin perder el propósito.', 'Observar puede ser útil de forma puntual, pero no sustituye siempre la participación.'],
   },
 ].map((question) => ({ ...question, source: 'Contenido original de demostración', year: 2026, isDemo: true }));
+
+export const allDemoQuestions = [...demoQuestions, ...extraQuestions];
+export const demoExams = [
+  { id: 'demo-1', title: 'Simulacro 1 · Fundamentos', type: 'demo', durationMinutes: 8, questionIds: demoQuestions.map(question => question.id) },
+  { id: 'demo-2', title: 'Simulacro 2 · Decisiones de aula', type: 'demo', durationMinutes: 8, questionIds: extraQuestions.filter(question => question.id.startsWith('demo2-')).map(question => question.id) },
+  { id: 'demo-3', title: 'Simulacro 3 · Aplicación pedagógica', type: 'demo', durationMinutes: 8, questionIds: extraQuestions.filter(question => question.id.startsWith('demo3-')).map(question => question.id) },
+];

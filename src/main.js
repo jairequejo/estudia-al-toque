@@ -5,6 +5,9 @@ import {
   recordAnswer,
   getProgress,
   getMistakes,
+  getReviewPlan,
+  getExams,
+  getExamQuestions,
   signUp,
   signIn,
   signOut,
@@ -13,6 +16,9 @@ import {
   getSession,
   isConfigured,
 } from './data/store.js';
+import { remindersEnabled, enableReminders, disableReminders, notifyDueReviews } from './notifications.js';
+import { initPwa, checkForUpdate, applyUpdate, currentBuild } from './pwa.js';
+import { speechAvailable, voiceEnabled, setVoiceEnabled, availableSpanishVoices, preferredVoice, setPreferredVoice, readQuestion, stopSpeech } from './speech.js';
 
 const app = document.querySelector('#app');
 // Identidad provisional: cambiar aquí cuando Edwin confirme el nombre comercial.
@@ -22,6 +28,8 @@ const state = {
   topicId: null, questions: [], index: 0, answer: null, feedback: null,
   mode: 'practice', examAnswers: [], examEndsAt: 0, examResult: null,
   authTab: 'signin', notice: '', busy: false, timer: null,
+  review: { items: [], due: [], upcoming: [] }, exams: [],
+  updateAvailable: false, pwaSupported: false,
 };
 
 const icon = {
@@ -54,7 +62,7 @@ function closeNotice() { state.notice = ''; render(); }
 function setBusy(value) { state.busy = value; render(); }
 function stopTimer() { if (state.timer) clearInterval(state.timer); state.timer = null; }
 function nav(view) {
-  stopTimer(); state.view = view; state.notice = ''; state.examResult = null;
+  stopTimer(); stopSpeech(); state.view = view; state.notice = ''; state.examResult = null;
   render(); window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function formatTime(seconds) {
@@ -72,8 +80,8 @@ function shell(content) {
   const active = state.view;
   const links = [
     ['home', 'Mi espacio', 'grid'], ['topics', 'Practicar', 'book'],
-    ['challenge', 'Reto breve', 'bolt'], ['mistakes', 'Mis errores', 'rotate'],
-    ['exam', 'Simulacro', 'target'],
+    ['challenge', 'Reto breve', 'bolt'], ['review', 'Repasos', 'rotate'],
+    ['exam', 'Exámenes', 'target'],
   ];
   const navLinks = links.map(([view, label, symbol]) => `<button class="nav-link ${active === view ? 'active' : ''}" data-nav="${view}" aria-current="${active === view ? 'page' : 'false'}">${svg(symbol)}<span>${label}</span>${active === view ? '<span class="active-dot"></span>' : ''}</button>`).join('');
   return `<div class="app-shell">
@@ -84,7 +92,7 @@ function shell(content) {
       <div class="sidebar-bottom"><div class="aside-card"><span class="aside-card-icon">✦</span><strong>Un paso a la vez.</strong><p>Practica, entiende y vuelve a intentar. Cada sesión cuenta.</p></div><span class="demo-tag">Contenido propio de demostración</span></div>
     </aside>
     <div class="main-column">
-      <header class="topbar"><div class="topbar-mobile"><button class="brand compact" data-nav="home" aria-label="Inicio"><span class="brand-mark">${svg('bolt', 20)}</span><span>Educación Física <strong>· Edwin Requejo</strong></span></button></div><div class="topbar-spacer"></div><span class="connection-pill ${isConfigured ? 'connected' : ''}"><span></span>${isConfigured ? 'Supabase conectado' : 'Modo demostración'}</span><button class="profile-button" data-nav="account" title="Cuenta">${state.session?.user?.email ? initials(state.session.user.email) : svg('user', 18)}<span>${state.session?.user?.email ? esc(state.session.user.email) : 'Mi cuenta'}</span></button></header>
+      <header class="topbar"><div class="topbar-mobile"><button class="brand compact" data-nav="home" aria-label="Inicio"><span class="brand-mark">${svg('bolt', 20)}</span><span>Educación Física <strong>· Edwin Requejo</strong></span></button></div><div class="topbar-spacer"></div><span class="connection-pill ${isConfigured ? 'connected' : ''}"><span></span>${isConfigured ? 'Supabase conectado' : 'Modo demostración'}</span><button class="settings-link" data-nav="settings" title="Configuración" aria-label="Configuración">⚙ <span>Configuración</span>${state.updateAvailable ? '<b class="settings-dot"></b>' : ''}</button><button class="profile-button" data-nav="account" title="Cuenta">${state.session?.user?.email ? initials(state.session.user.email) : svg('user', 18)}<span>${state.session?.user?.email ? esc(state.session.user.email) : 'Mi cuenta'}</span></button></header>
       ${state.notice ? `<div class="notice" role="status"><span>${esc(state.notice)}</span><button data-action="dismiss-notice" aria-label="Cerrar aviso">${svg('close', 16)}</button></div>` : ''}
       <main id="main-content">${content}</main>
       <footer class="footer"><span>Proyecto educativo de Edwin Requejo · versión de demostración</span><span>Preguntas de muestra creadas para esta demo, aún no revisadas por Edwin.</span></footer>
@@ -116,7 +124,7 @@ function homeView() {
     <section class="hero"><div class="hero-content"><span class="hero-kicker"><span class="sparkle">✦</span> PREPARACIÓN DOCENTE · EDUCACIÓN FÍSICA</span><h1>Aprende a tu ritmo.<br><em>Avanza con criterio.</em></h1><p>Un espacio de estudio de Edwin Requejo: practica por temas, entiende cada alternativa y refuerza lo que necesitas.</p><div class="hero-actions"><button class="button button-dark" data-action="start-practice" data-topic="${esc(first?.id || '')}">Empezar a practicar ${svg('arrow', 18)}</button><button class="button button-light" data-nav="exam">Ver simulacro</button></div><div class="hero-footnote">✳ Preguntas de muestra propias de esta demo; Edwin aún no las ha revisado. No son preguntas oficiales.</div></div><div class="hero-visual" aria-hidden="true"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="visual-card visual-card-back"><span>01</span><div class="visual-lines"><i></i><i></i><i></i></div></div><div class="visual-card visual-card-front"><div class="visual-badge">✦</div><strong>¡Vas<br>muy bien!</strong><span>Un intento a la vez.</span><div class="visual-dots"><b></b><b></b><b></b><b></b></div></div><div class="visual-star star-one">✳</div><div class="visual-star star-two">✦</div></div></section>
     <section class="stats-grid" aria-label="Tu progreso"><div class="stat-card"><span class="stat-icon coral">${svg('book', 22)}</span><strong>${p.totalAnswered || 0}</strong><span>respuestas registradas</span></div><div class="stat-card"><span class="stat-icon blue">${svg('target', 22)}</span><strong>${rate}%</strong><span>aciertos acumulados</span></div><div class="stat-card"><span class="stat-icon yellow">${svg('bolt', 22)}</span><strong>${p.streak || 0}</strong><span>aciertos seguidos</span></div></section>
     <div class="content-row"><div class="content-intro"><span class="eyebrow">ELIGE TU SIGUIENTE PASO</span><h2>Una práctica que se adapta a ti.</h2></div><button class="text-link" data-nav="topics">Ver todos los temas ${svg('arrow', 17)}</button></div>
-    <section class="action-grid"><button class="action-card action-peach" data-nav="topics"><span class="action-icon">${svg('book', 23)}</span><span><strong>Practica por tema</strong><small>Aprende con explicación en cada pregunta.</small></span>${svg('arrow', 19)}</button><button class="action-card action-lime" data-nav="challenge"><span class="action-icon">${svg('bolt', 23)}</span><span><strong>Reto breve</strong><small>Cinco preguntas para entrar en ritmo.</small></span>${svg('arrow', 19)}</button><button class="action-card action-blue" data-nav="mistakes"><span class="action-icon">${svg('rotate', 23)}</span><span><strong>Repasa errores</strong><small>Vuelve a las preguntas que cuestan.</small></span>${svg('arrow', 19)}</button></section>
+    <section class="action-grid"><button class="action-card action-peach" data-nav="topics"><span class="action-icon">${svg('book', 23)}</span><span><strong>Practica por tema</strong><small>Aprende con explicación en cada pregunta.</small></span>${svg('arrow', 19)}</button><button class="action-card action-lime" data-nav="challenge"><span class="action-icon">${svg('bolt', 23)}</span><span><strong>Reto breve</strong><small>Cinco preguntas para entrar en ritmo.</small></span>${svg('arrow', 19)}</button><button class="action-card action-blue" data-nav="review"><span class="action-icon">${svg('rotate', 23)}</span><span><strong>Repasos espaciados</strong><small>${state.review.due.length ? `${state.review.due.length} preguntas listas para repasar.` : 'Tus próximas preguntas aparecerán aquí.'}</small></span>${svg('arrow', 19)}</button></section>
     <section class="home-topics"><div class="content-row"><div class="content-intro"><span class="eyebrow">CONTENIDO DISPONIBLE</span><h2>Empieza por un tema.</h2></div></div><div class="topic-grid">${topicCards()}</div></section>
     <section class="coming-soon"><span class="coming-symbol">✦</span><div><strong>Contenido en preparación</strong><p>El banco de preguntas revisado por Edwin Requejo se incorporará más adelante. Estas preguntas de muestra permiten probar la experiencia mientras tanto.</p></div></section>
     <section class="official-resource"><div><span class="eyebrow">RECURSO EXTERNO</span><h2>Consulta los cuadernillos oficiales.</h2><p>El Minedu publica instrumentos y claves del concurso de nombramiento 2024. Son material externo; las preguntas de esta demo son originales y diferentes.</p></div><a href="https://evaluaciondocente.perueduca.pe/nombramiento24/nombramientoinstrumentos2024/" target="_blank" rel="noopener noreferrer">Cuadernillos oficiales Minedu ${svg('arrow', 17)}</a></section>
@@ -139,10 +147,10 @@ function questionCard(q, index, total, mode, selected, feedback) {
     const wrongChoice = answered && selectedChoice && !correctChoice;
     return `<button class="choice ${selectedChoice ? 'selected' : ''} ${correctChoice ? 'correct' : ''} ${wrongChoice ? 'wrong' : ''}" data-action="choose" data-choice="${choiceIndex}" ${answered ? 'disabled' : ''} aria-pressed="${selectedChoice}"><span class="choice-letter">${String.fromCharCode(65 + choiceIndex)}</span><span class="choice-text">${esc(option)}</span><span class="choice-indicator">${correctChoice ? svg('check', 18) : ''}</span></button>`;
   }).join('');
-  const title = exam ? 'Simulacro' : mode === 'challenge' ? 'Reto breve' : mode === 'mistakes' ? 'Repaso de errores' : 'Práctica por tema';
-  return `<div class="question-layout"><div class="quiz-topline"><button class="back-link" data-nav="${mode === 'practice' ? 'topics' : mode === 'mistakes' ? 'mistakes' : 'home'}">← Volver</button><span class="quiz-mode">${title}</span></div>
+  const title = exam ? 'Simulacro' : mode === 'challenge' ? 'Reto breve' : mode === 'review' ? 'Repaso espaciado' : mode === 'mistakes' ? 'Repaso de errores' : 'Práctica por tema';
+  return `<div class="question-layout"><div class="quiz-topline"><button class="back-link" data-nav="${mode === 'practice' ? 'topics' : mode === 'review' ? 'review' : mode === 'mistakes' ? 'mistakes' : 'home'}">← Volver</button><span class="quiz-mode">${title}</span></div>
     <div class="quiz-progress-row"><span>Pregunta <strong>${index + 1}</strong> de ${total}</span>${exam ? `<span class="timer" id="exam-timer">${svg('clock', 18)} ${formatTime(timeLeft())}</span>` : `<span>${esc(topic(q.topicId)?.title || '')}</span>`}</div><div class="progress-track"><span style="width:${percent(index + (answered || exam && selected !== null ? 1 : 0), total)}%"></span></div>
-    <section class="question-panel" aria-label="Pregunta ${index + 1}"><div class="question-top">${questionMeta(q)}<span class="question-number">${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}</span></div><h1>${esc(q.prompt)}</h1><p class="choose-hint">${exam ? 'Elige una alternativa. Las explicaciones aparecerán al finalizar.' : 'Elige la alternativa que consideres correcta.'}</p><div class="choices">${choices}</div>
+    <section class="question-panel" aria-label="Pregunta ${index + 1}"><div class="question-top">${questionMeta(q)}<span class="question-number">${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}</span></div><div class="voice-controls"><button class="voice-play" data-action="repeat-question" ${!speechAvailable() ? 'disabled' : ''}>${svg('sound', 18)} Escuchar</button><button class="voice-toggle" role="switch" data-action="toggle-voice" aria-checked="${voiceEnabled()}" ${!speechAvailable() ? 'disabled' : ''}><span class="switch-track"><span></span></span> Lectura automática</button></div><h1>${esc(q.prompt)}</h1><p class="choose-hint">${exam ? 'Elige una alternativa. Las explicaciones aparecerán al finalizar.' : 'Elige la alternativa que consideres correcta.'}</p><div class="choices">${choices}</div>
     ${answered ? feedbackMarkup(q, feedback, selected) : ''}
     <div class="question-actions">${exam ? `<button class="button button-primary" data-action="exam-next" ${selected === null ? 'disabled' : ''}>${index + 1 === total ? 'Terminar simulacro' : 'Siguiente pregunta'} ${svg('arrow', 18)}</button>` : answered ? `<button class="button button-primary" data-action="next-question">${index + 1 === total ? 'Ver mi avance' : 'Siguiente pregunta'} ${svg('arrow', 18)}</button>` : `<button class="button button-primary" data-action="check-answer" ${selected === null ? 'disabled' : ''}>Comprobar respuesta ${svg('arrow', 18)}</button>`}</div></section></div>`;
 }
@@ -157,16 +165,29 @@ function quizView() {
   return `<div class="page quiz-page">${questionCard(state.questions[state.index], state.index, state.questions.length, state.mode, state.answer, state.feedback)}</div>`;
 }
 function finishView() {
-  const type = state.mode === 'challenge' ? 'reto' : state.mode === 'mistakes' ? 'repaso' : 'práctica';
+  const type = state.mode === 'challenge' ? 'reto' : ['mistakes', 'review'].includes(state.mode) ? 'repaso' : 'práctica';
   return `<div class="page finish-page"><div class="finish-card"><span class="finish-spark">✳</span><span class="eyebrow">SESIÓN COMPLETADA</span><h1>¡Bien hecho!</h1><p>Terminaste este ${type}. Lo valioso es entender cada respuesta y volver a intentarlo.</p><div class="finish-actions"><button class="button button-primary" data-nav="topics">Practicar otro tema ${svg('arrow', 18)}</button><button class="button button-outline" data-nav="home">Ver mi progreso</button></div></div></div>`;
 }
 function mistakesView() {
   const questions = state.mistakes || [];
   return `<div class="page">${sectionHeading('APRENDER TAMBIÉN ES VOLVER', 'Mis errores.', 'Aquí aparecen las preguntas falladas hasta que vuelvas a responderlas correctamente.')}${questions.length ? `<div class="review-intro"><div><strong>${questions.length} ${questions.length === 1 ? 'pregunta' : 'preguntas'} por revisar</strong><p>Repásalas a tu ritmo. Un acierto las retira de esta lista.</p></div><button class="button button-primary" data-action="start-mistakes">Empezar repaso ${svg('arrow', 18)}</button></div><div class="review-list">${questions.map((q, i) => `<article class="review-item"><span class="review-number">${String(i + 1).padStart(2, '0')}</span><div><span>${esc(topic(q.topicId)?.title || 'Tema')}</span><h3>${esc(q.prompt)}</h3></div>${svg('arrow', 18)}</article>`).join('')}</div>` : emptyState('✦', 'Tu lista está al día.', 'Cuando una pregunta te cueste, aparecerá aquí para que puedas reforzarla.', 'topics', 'Ir a practicar')}</div>`;
 }
+function reviewView() {
+  const due = state.review.due;
+  const upcoming = state.review.upcoming;
+  const grouped = allTopics().map(item => ({ topic: item, questions: due.filter(q => q.topicId === item.id) })).filter(group => group.questions.length);
+  const next = upcoming[0] ? new Date(upcoming[0].dueAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long' }) : null;
+  return `<div class="page">${sectionHeading('RECUERDA EN EL MOMENTO JUSTO', 'Repasos espaciados.', 'Después de responder, la pregunta vuelve al día siguiente. Los aciertos consecutivos amplían el intervalo a 3, 7, 14 y 30 días; un error reinicia el ciclo.')}
+    <div class="review-intro"><div><strong>${due.length} ${due.length === 1 ? 'pregunta pendiente' : 'preguntas pendientes'}</strong><p>${next ? `Próximo repaso programado: ${esc(next)}.` : 'Responde preguntas para crear tu calendario de repaso.'}</p></div>${due.length ? `<button class="button button-primary" data-action="start-review">Repasar todas ${svg('arrow', 18)}</button>` : ''}</div>
+    <div class="reminder-card"><div><strong>${svg('clock', 18)} Recordatorios del navegador</strong><p>${remindersEnabled() ? 'Activados. Te avisaremos si hay preguntas pendientes cuando abras o mantengas abierta esta app.' : 'Actívalos para recibir un aviso cuando tengas repasos pendientes mientras la app esté abierta.'}</p><small>Los avisos con la app cerrada requieren un servicio de envío que aún no está conectado.</small></div><button class="button button-outline" data-action="${remindersEnabled() ? 'disable-reminders' : 'enable-reminders'}">${remindersEnabled() ? 'Desactivar avisos' : 'Activar avisos'}</button></div>
+    ${grouped.length ? `<div class="review-groups">${grouped.map(group => `<section class="review-group"><div><h2>${esc(group.topic.title)}</h2><span>${group.questions.length} ${group.questions.length === 1 ? 'pregunta' : 'preguntas'} para hoy</span></div><button class="button button-outline" data-action="start-review" data-topic="${esc(group.topic.id)}">Repasar tema ${svg('arrow', 17)}</button></section>`).join('')}</div>` : emptyState('✦', 'Estás al día.', 'Practica un tema y aquí verás cuándo conviene volver a cada pregunta.', 'topics', 'Ver temas')}
+    ${upcoming.length ? `<section class="upcoming-reviews"><h2>Próximos repasos</h2><div class="review-list">${upcoming.slice(0, 5).map(q => `<div class="review-item"><span class="review-number">${svg('clock', 18)}</span><div><span>${esc(topic(q.topicId)?.title || 'Tema')} · ${new Date(q.dueAt).toLocaleDateString('es-PE', { day: 'numeric', month: 'long' })}</span><h3>${esc(q.prompt)}</h3></div></div>`).join('')}</div></section>` : ''}
+  </div>`;
+}
 function examIntroView() {
-  return `<div class="page">${sectionHeading('PONTE A PRUEBA', 'Simulacro.', 'Un espacio separado de la práctica para medir tu avance con tiempo.')}
-    <div class="exam-intro"><div class="exam-illustration"><div class="exam-circle">${svg('target', 54)}</div><span class="exam-deco one">✦</span><span class="exam-deco two">✳</span></div><div><span class="eyebrow">ANTES DE EMPEZAR</span><h2>Concéntrate en una pregunta a la vez.</h2><p>Responderás hasta 10 preguntas de los temas disponibles. Tendrás 8 minutos. Al terminar verás tu resultado y las explicaciones.</p><div class="exam-facts"><span>${svg('book', 18)} Hasta 10 preguntas</span><span>${svg('clock', 18)} 8 minutos</span><span>${svg('target', 18)} Resultado al final</span></div><button class="button button-dark" data-action="start-exam">Iniciar simulacro ${svg('arrow', 18)}</button><small>Simulacro de demostración con preguntas propias. No reproduce un examen oficial.</small></div></div></div>`;
+  return `<div class="page">${sectionHeading('CONTENIDO DISPONIBLE', 'Exámenes cargados.', 'Consulta qué material está dentro de la app antes de empezar.')}
+    <section class="exam-catalog"><h2>Dentro de la app</h2>${state.exams.length ? state.exams.map(exam => `<article class="exam-catalog-item"><div><span class="exam-badge">${exam.type === 'demo' ? 'DEMOSTRACIÓN' : 'EXAMEN'}</span><h3>${esc(exam.title)}</h3><p>${exam.questionCount} preguntas · ${exam.durationMinutes} minutos · ${exam.topicIds.length} temas</p><small>Preguntas propias de muestra. No es un cuadernillo oficial ni ha sido revisado por Edwin.</small></div><button class="button button-primary" data-action="start-exam" data-exam="${esc(exam.id)}">Iniciar ${svg('arrow', 17)}</button></article>`).join('') : '<p>Aún no hay exámenes cargados en la app.</p>'}<p class="catalog-note">Exámenes oficiales cargados: <strong>0</strong>. Los cuadernillos del Minedu se consultan por separado.</p></section>
+    <div class="exam-intro"><div class="exam-illustration"><div class="exam-circle">${svg('target', 54)}</div><span class="exam-deco one">✦</span><span class="exam-deco two">✳</span></div><div><span class="eyebrow">ANTES DE EMPEZAR</span><h2>Concéntrate en una pregunta a la vez.</h2><p>Elige uno de los simulacros cargados. Cada uno contiene 9 preguntas y dura 8 minutos. Al terminar verás tu resultado y las explicaciones.</p><div class="exam-facts"><span>${svg('book', 18)} 9 preguntas</span><span>${svg('clock', 18)} 8 minutos</span><span>${svg('target', 18)} Resultado al final</span></div><small>Simulacros originales de demostración. No reproducen exámenes oficiales.</small></div></div></div>`;
 }
 function examResultView() {
   const result = state.examResult;
@@ -190,33 +211,47 @@ function recoveryView() {
 function passwordUpdateView() {
   return `<div class="page account-page">${sectionHeading('NUEVA CONTRASEÑA', 'Recupera tu acceso.', 'Escribe una nueva contraseña para terminar la recuperación.')}<div class="auth-card recovery-card"><form id="password-update-form"><label for="new-password">Nueva contraseña</label><input id="new-password" name="password" type="password" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres" required/><button class="button button-primary full" type="submit" ${state.busy ? 'disabled' : ''}>Guardar contraseña ${svg('arrow', 18)}</button></form></div></div>`;
 }
+function settingsView() {
+  const voices = availableSpanishVoices();
+  return `<div class="page settings-page">${sectionHeading('TU EXPERIENCIA', 'Configuración.', 'Controla la lectura de preguntas y comprueba si hay una versión nueva de la app.')}
+    <section class="setting-card"><div><h2>Lectura en voz alta</h2><p>Lee automáticamente el enunciado y las opciones A, B y C. Puedes escuchar de nuevo desde cada pregunta.</p><small>${speechAvailable() ? 'Usamos la mejor voz en español disponible en tu dispositivo. Para una voz más natural, elige otra si aparece en la lista.' : 'Este navegador no dispone de síntesis de voz.'}</small>${voices.length ? `<label class="voice-label" for="voice-choice">Voz del dispositivo</label><select id="voice-choice"><option value="">Automática (mejor disponible)</option>${voices.map(voice => `<option value="${esc(voice.name)}" ${preferredVoice() === voice.name ? 'selected' : ''}>${esc(voice.name)} · ${esc(voice.lang)}</option>`).join('')}</select>` : ''}</div><button class="button button-outline" data-action="toggle-voice" aria-pressed="${voiceEnabled()}" ${!speechAvailable() ? 'disabled' : ''}>${voiceEnabled() ? 'Desactivar lectura' : 'Activar lectura'}</button></section>
+    <section class="setting-card"><div><h2>Actualizaciones de la PWA</h2><p>${state.updateAvailable ? 'Hay una versión nueva lista para instalar.' : 'Puedes comprobar manualmente si ya se publicó una versión nueva.'}</p><small>Versión instalada: ${esc(new Date(currentBuild).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' }))}. Tu avance guardado en este navegador se conserva al actualizar.</small></div><div class="setting-actions"><button class="button button-outline" data-action="check-update" ${!state.pwaSupported ? 'disabled' : ''}>Buscar actualización</button>${state.updateAvailable ? '<button class="button button-primary" data-action="apply-update">Actualizar ahora</button>' : ''}</div></section>
+    ${!state.pwaSupported ? '<p class="info-strip">La búsqueda de actualizaciones requiere abrir la versión publicada por HTTPS o localhost.</p>' : ''}
+  </div>`;
+}
 function render() {
   let content;
   switch (state.view) {
     case 'topics': content = topicsView(); break;
     case 'quiz': content = quizView(); break;
     case 'mistakes': content = mistakesView(); break;
+    case 'review': content = reviewView(); break;
     case 'exam': content = examIntroView(); break;
     case 'exam-result': content = examResultView(); break;
     case 'account': content = accountView(); break;
     case 'recovery': content = recoveryView(); break;
     case 'password-update': content = passwordUpdateView(); break;
+    case 'settings': content = settingsView(); break;
     default: content = homeView();
   }
   app.innerHTML = shell(content);
 }
 
-async function refreshProgress() { state.progress = await getProgress(); }
+async function refreshProgress() {
+  [state.progress, state.review] = await Promise.all([getProgress(), getReviewPlan()]);
+  void notifyDueReviews(state.review);
+}
 async function startQuestions(mode, topicId) {
   setBusy(true);
   try {
-    let questions = mode === 'mistakes' ? await getMistakes() : await getQuestions(topicId);
+    let questions = mode === 'mistakes' ? await getMistakes() : mode === 'review' ? state.review.due.filter(q => !topicId || q.topicId === topicId) : await getQuestions(topicId);
     if (mode === 'challenge') questions = questions.slice(0, 5);
     state.questions = questions; state.topicId = topicId; state.mode = mode;
     state.index = 0; state.answer = null; state.feedback = null; state.view = 'quiz';
     state.notice = questions.length ? '' : 'Todavía no hay preguntas disponibles en este tema.';
   } catch (error) { state.notice = error.message || 'No se pudieron cargar las preguntas.'; }
   finally { state.busy = false; render(); window.scrollTo(0, 0); }
+  if (state.view === 'quiz') readQuestion(state.questions[0]);
 }
 async function startChallenge() {
   const topics = allTopics();
@@ -224,12 +259,12 @@ async function startChallenge() {
   const questions = groups.flat().sort((a, b) => a.id.localeCompare(b.id)).slice(0, 5);
   state.questions = questions; state.topicId = null; state.mode = 'challenge';
   state.index = 0; state.answer = null; state.feedback = null; state.view = 'quiz'; render();
+  readQuestion(state.questions[0]);
 }
-async function startExam() {
+async function startExam(examId) {
   setBusy(true);
   try {
-    const groups = await Promise.all(allTopics().map(item => getQuestions(item.id)));
-    const questions = groups.flat().sort(() => Math.random() - .5).slice(0, 10);
+    const questions = await getExamQuestions(examId);
     if (!questions.length) { state.notice = 'Aún no hay preguntas para el simulacro.'; return; }
     state.questions = questions; state.examAnswers = []; state.examResult = null;
     state.mode = 'exam'; state.index = 0; state.answer = null; state.feedback = null;
@@ -242,10 +277,11 @@ async function startExam() {
     }, 1000);
   } catch (error) { state.notice = error.message || 'No se pudo iniciar el simulacro.'; }
   finally { state.busy = false; render(); window.scrollTo(0, 0); }
+  if (state.view === 'quiz') readQuestion(state.questions[0]);
 }
 async function finishExam() {
   if (state.examResult || state.busy) return;
-  stopTimer(); state.busy = true; render();
+  stopTimer(); stopSpeech(); state.busy = true; render();
   try {
     const answers = state.examAnswers.slice();
     if (state.index < state.questions.length) answers[state.index] = state.answer;
@@ -269,15 +305,36 @@ app.addEventListener('click', async event => {
   if (view) {
     if (view === 'challenge') { try { await startChallenge(); } catch (error) { setNotice(error.message); } return; }
     if (view === 'mistakes') { try { state.mistakes = await getMistakes(); } catch (error) { state.mistakes = []; state.notice = error.message; } }
+    if (view === 'review') { try { state.review = await getReviewPlan(); } catch (error) { state.notice = error.message; } }
     nav(view); return;
   }
   const authTab = button.dataset.authTab;
   if (authTab) { state.authTab = authTab; render(); return; }
   const action = button.dataset.action;
   if (action === 'dismiss-notice') return closeNotice();
+  if (action === 'toggle-voice') {
+    setVoiceEnabled(!voiceEnabled()); render();
+    if (voiceEnabled() && state.view === 'quiz') readQuestion(state.questions[state.index]);
+    return;
+  }
+  if (action === 'repeat-question') { readQuestion(state.questions[state.index], { force: true }); return; }
+  if (action === 'check-update') {
+    try { setBusy(true); state.updateAvailable = await checkForUpdate(); state.notice = state.updateAvailable ? 'Hay una versión nueva disponible.' : 'Ya tienes la versión más reciente.'; }
+    catch (error) { state.notice = error.message || 'No se pudo comprobar la actualización.'; }
+    finally { state.busy = false; render(); }
+    return;
+  }
+  if (action === 'apply-update') { applyUpdate(); return; }
   if (action === 'start-practice') return startQuestions('practice', button.dataset.topic);
   if (action === 'start-mistakes') return startQuestions('mistakes');
-  if (action === 'start-exam') return startExam();
+  if (action === 'start-review') return startQuestions('review', button.dataset.topic);
+  if (action === 'enable-reminders') {
+    try { await enableReminders(); state.notice = 'Avisos activados para este navegador.'; await notifyDueReviews(state.review); }
+    catch (error) { state.notice = error.message; }
+    render(); return;
+  }
+  if (action === 'disable-reminders') { disableReminders(); return setNotice('Avisos desactivados.'); }
+  if (action === 'start-exam') return startExam(button.dataset.exam);
   if (action === 'show-recovery') return nav('recovery');
   if (action === 'signout') {
     try { setBusy(true); await signOut(); state.session = null; await refreshProgress(); state.view = 'account'; state.notice = 'Sesión cerrada.'; }
@@ -289,18 +346,25 @@ app.addEventListener('click', async event => {
   if (action === 'check-answer') {
     if (state.answer === null || state.feedback) return;
     const q = state.questions[state.index];
-    try { setBusy(true); state.feedback = await recordAnswer({ questionId: q.id, selectedIndex: state.answer, mode: state.mode === 'mistakes' ? 'practice' : state.mode }); await refreshProgress(); }
+    try { setBusy(true); state.feedback = await recordAnswer({ questionId: q.id, selectedIndex: state.answer, mode: ['mistakes', 'review'].includes(state.mode) ? 'practice' : state.mode }); await refreshProgress(); }
     catch (error) { state.notice = error.message || 'No se pudo guardar la respuesta.'; }
     finally { state.busy = false; render(); }
     return;
   }
-  if (action === 'next-question') { state.index++; state.answer = null; state.feedback = null; render(); window.scrollTo(0, 0); return; }
+  if (action === 'next-question') { stopSpeech(); state.index++; state.answer = null; state.feedback = null; render(); window.scrollTo(0, 0); readQuestion(state.questions[state.index]); return; }
   if (action === 'exam-next') {
     if (state.answer === null) return;
     state.examAnswers[state.index] = state.answer;
     if (state.index + 1 === state.questions.length) return finishExam();
-    state.index++; state.answer = null; render(); window.scrollTo(0, 0);
+    stopSpeech(); state.index++; state.answer = null; render(); window.scrollTo(0, 0); readQuestion(state.questions[state.index]);
   }
+});
+
+app.addEventListener('change', event => {
+  if (event.target.id !== 'voice-choice') return;
+  setPreferredVoice(event.target.value);
+  state.notice = 'Voz guardada para este navegador.';
+  render();
 });
 
 app.addEventListener('submit', async event => {
@@ -337,10 +401,19 @@ app.addEventListener('submit', async event => {
 async function init() {
   app.innerHTML = '<div class="loading-screen"><span class="brand-mark">✦</span><p>Preparando tu espacio de estudio...</p></div>';
   try {
-    [state.catalog, state.progress, state.session] = await Promise.all([getCatalog(), getProgress(), getSession()]);
+    [state.catalog, state.progress, state.session, state.review, state.exams] = await Promise.all([getCatalog(), getProgress(), getSession(), getReviewPlan(), getExams()]);
     if (!state.catalog?.courses) state.catalog = { courses: [] };
     if (isConfigured && /(?:#|&)type=recovery(?:&|$)/.test(location.hash)) state.view = 'password-update';
   } catch (error) { state.notice = error.message || 'No se pudo cargar el contenido.'; }
   render();
+  if (speechAvailable()) window.speechSynthesis.addEventListener('voiceschanged', () => { if (state.view === 'settings') render(); });
+  try { state.pwaSupported = await initPwa(() => { state.updateAvailable = true; if (state.view === 'settings') render(); }); }
+  catch { state.pwaSupported = false; }
+  render();
+  void notifyDueReviews(state.review);
+  setInterval(async () => {
+    try { state.review = await getReviewPlan(); if (state.view === 'review' || state.view === 'home') render(); await notifyDueReviews(state.review); }
+    catch { /* La próxima apertura volverá a intentar cargar los repasos. */ }
+  }, 60 * 1000);
 }
 init();

@@ -14,6 +14,12 @@ test('demo: respuesta, errores pendientes, repaso y persistencia', async () => {
     assert.equal(store.isConfigured, false);
     const catalog = await store.getCatalog();
     assert.equal(catalog.courses[0].topics.length, 3);
+    const exams = await store.getExams();
+    assert.equal(exams.length, 3);
+    assert.ok(exams.every(exam => exam.type === 'demo' && exam.questionCount === 9));
+    const examQuestions = await Promise.all(exams.map(exam => store.getExamQuestions(exam.id)));
+    assert.ok(examQuestions.every(questions => questions.length === 9));
+    assert.equal(new Set(examQuestions.flat().map(question => question.id)).size, 27);
     for (const topic of catalog.courses[0].topics) {
       const questions = await store.getQuestions(topic.id);
       assert.equal(questions.length, topic.questionCount);
@@ -30,6 +36,7 @@ test('demo: respuesta, errores pendientes, repaso y persistencia', async () => {
     assert.equal((await store.getMistakes())[0].id, question.id);
     assert.equal((await store.getProgress()).totalAnswered, 1);
     assert.equal((await store.getProgress()).correctAnswers, 0);
+    assert.equal((await store.getReviewPlan()).upcoming.length, 1);
     const correct = await store.recordAnswer({ questionId: question.id, selectedIndex: question.correctIndex, mode: 'challenge' });
     assert.equal(correct.isCorrect, true);
     assert.equal((await store.getMistakes()).length, 0);

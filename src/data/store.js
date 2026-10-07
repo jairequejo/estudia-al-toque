@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { demoCatalog, demoQuestions } from './demo.js';
+import { demoCatalog, allDemoQuestions, demoExams } from './demo.js';
+import { buildReviewPlan } from './review.js';
 
 const url = import.meta.env.VITE_SUPABASE_URL?.trim();
 const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -94,12 +95,35 @@ export async function getCatalog() {
 }
 
 export async function getQuestions(topicId) {
-  if (!supabase) return copy(demoQuestions.filter((question) => question.topicId === topicId));
+  if (!supabase) return copy(allDemoQuestions.filter((question) => question.topicId === topicId));
   const { data, error } = await supabase.from('questions')
     .select('id,topic_id,prompt,options,correct_index,explanation,option_explanations,source,year,is_demo')
     .eq('topic_id', topicId).eq('is_published', true).order('sort_order');
   if (error) throw friendlyError(error);
   return data.map(mapQuestion);
+}
+
+export async function getExams() {
+  if (!supabase) return copy(demoExams.map(exam => ({ ...exam, questionCount: exam.questionIds.length, topicIds: demoCatalog.courses.flatMap(course => course.topics.map(topic => topic.id)) })));
+  // No se declara un examen oficial cargado sin un catálogo editorial verificado.
+  return [];
+}
+
+export async function getExamQuestions(examId) {
+  if (!supabase) {
+    const exam = demoExams.find(item => item.id === examId);
+    if (!exam) throw new Error('Examen no disponible.');
+    const byId = new Map(allDemoQuestions.map(question => [question.id, question]));
+    return copy(exam.questionIds.map(id => byId.get(id)).filter(Boolean));
+  }
+  throw new Error('Aún no hay exámenes cargados en esta cuenta.');
+}
+
+export async function getReviewPlan() {
+  const catalog = await getCatalog();
+  const topics = catalog.courses.flatMap(course => course.topics);
+  const groups = await Promise.all(topics.map(item => getQuestions(item.id)));
+  return buildReviewPlan(groups.flat(), await allAttempts());
 }
 
 async function allAttempts() {
@@ -131,7 +155,7 @@ export async function recordAnswer({ questionId, selectedIndex, mode = 'practice
       return { isCorrect: result.is_correct, correctIndex: result.correct_index, explanation: result.explanation, optionExplanations: result.option_explanations };
     }
   }
-  let question = demoQuestions.find((item) => item.id === questionId);
+  let question = allDemoQuestions.find((item) => item.id === questionId);
   if (!question && supabase) {
     const { data, error } = await supabase.from('questions')
       .select('id,topic_id,prompt,options,correct_index,explanation,option_explanations,source,year,is_demo')
@@ -159,7 +183,7 @@ export async function getProgress() {
   let streak = 0;
   for (const attempt of attempts) {
     if (attempt.isCorrect) { correctAnswers += 1; streak += 1; } else { streak = 0; }
-    const topicId = remoteTopicIds.get(attempt.questionId) || demoQuestions.find((question) => question.id === attempt.questionId)?.topicId;
+    const topicId = remoteTopicIds.get(attempt.questionId) || allDemoQuestions.find((question) => question.id === attempt.questionId)?.topicId;
     if (!topicId) continue;
     byTopic[topicId] ||= { totalAnswered: 0, correctAnswers: 0 };
     byTopic[topicId].totalAnswered += 1;
@@ -184,7 +208,7 @@ export async function getMistakes() {
     if (error) throw friendlyError(error);
     questions = data.map(mapQuestion);
   } else {
-    questions = demoQuestions;
+    questions = allDemoQuestions;
   }
   return copy(questions.filter((question) => pending.has(question.id)).map((question) => ({ ...question, lastSelectedIndex: pending.get(question.id) })));
 }
