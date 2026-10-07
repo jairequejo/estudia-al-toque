@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.117.2"
+    "@supabase/supabase-js": "2.117.2",
+    "edge-tts-universal": "^1.4.0"
   },
   "devDependencies": {
     "vite": "8.3.3"

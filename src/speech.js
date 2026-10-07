@@ -1,33 +1,27 @@
+import { UniversalEdgeTTS } from 'edge-tts-universal';
+
 const preferenceKey = 'educacion-fisica:voice-reading:v1';
 const voiceKey = 'educacion-fisica:preferred-voice:v1';
 
-export const speechAvailable = () => 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+// Voces masculinas neuronales de Microsoft Azure
+const DEFAULT_VOICE = 'es-MX-JorgeNeural';
+
+export const speechAvailable = () => true; // Siempre disponible por red
 export const voiceEnabled = () => localStorage.getItem(preferenceKey) !== 'off';
-export const preferredVoice = () => localStorage.getItem(voiceKey) || '';
+export const preferredVoice = () => localStorage.getItem(voiceKey) || DEFAULT_VOICE;
 export const setPreferredVoice = (name) => localStorage.setItem(voiceKey, name);
 
-export function availableSpanishVoices() {
-  if (!speechAvailable()) return [];
-  return window.speechSynthesis.getVoices().filter(voice => voice.lang.toLowerCase().startsWith('es'));
-}
-
-export function rankVoice(voice) {
-  const name = voice.name.toLowerCase();
-  const lang = voice.lang.toLowerCase();
-  return (voice.localService === false ? 20 : 0) // Cloud voices
-    + (/(pablo|raul|alvaro|tomas|dario|jorge|juan|diego|carlos|rodrigo|male|hombre)/.test(name) ? 25 : 0) // Prioridad absoluta a voz masculina
-    + (/(natural|neural|premium|enhanced|multilingual)/.test(name) ? 15 : 0)
-    + (/google/.test(name) ? 6 : 0)
-    + (/microsoft/.test(name) ? 5 : 0)
-    + (lang === 'es-pe' ? 4 : 0)
-    + (lang === 'es-mx' ? 2 : 0)
-    - (/(compact|e-speak|espeak|android|female|mujer)/.test(name) ? 15 : 0);
-}
-
-let cachedVoice = null;
+let currentAudio = null;
+let synthesisCounter = 0;
 
 export function stopSpeech() {
-  if (speechAvailable() && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+  synthesisCounter++; // Invalida cualquier síntesis en curso
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.currentTime = 0;
+    currentAudio = null;
+  }
+  if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
 }
@@ -37,41 +31,43 @@ export function setVoiceEnabled(enabled) {
   if (!enabled) stopSpeech();
 }
 
-function getBestVoice() {
-  if (cachedVoice) return cachedVoice;
-  const voices = availableSpanishVoices();
-  if (voices.length === 0) return null; // No cachear si aún no han cargado las voces
-  cachedVoice = voices.find(voice => voice.name === preferredVoice()) || voices.sort((a, b) => rankVoice(b) - rankVoice(a))[0] || null;
-  return cachedVoice;
-}
-
-export function readQuestion(question, { force = false } = {}) {
-  if ((!voiceEnabled() && !force) || !speechAvailable() || !question) return false;
+export async function readQuestion(question, { force = false } = {}) {
+  if ((!voiceEnabled() && !force) || !question) return false;
   
   stopSpeech();
+  const currentId = synthesisCounter;
   
-  // Bugfix: Chrome a veces se cuelga si se hace speak inmediatamente tras cancel
-  setTimeout(() => {
-    const voiceToUse = getBestVoice();
-    
-    // Función ayudante para encolar fragmentos (evita que el motor TTS tarde en renderizar audios largos)
-    const speakChunk = (text) => {
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = 'es-PE';
-      utterance.rate = 0.85; // Un poco más natural, no tan exageradamente lento
-      utterance.pitch = 0.9;
-      if (voiceToUse) utterance.voice = voiceToUse;
-      window.speechSynthesis.speak(utterance);
-    };
-
-    // 1. Hablar la pregunta de inmediato (arranca rápido)
-    speakChunk(question.prompt);
-
-    // 2. Encolar las opciones
-    question.options.forEach((option, index) => {
-      speakChunk(`Opción ${String.fromCharCode(65 + index)}... ${option}`);
+  const options = question.options.map((option, index) => `Opción ${String.fromCharCode(65 + index)}... ${option}`).join('. ');
+  const text = `${question.prompt}... ${options}`;
+  
+  try {
+    // Solicitar audio a Microsoft Azure (Edge TTS)
+    const tts = new UniversalEdgeTTS(text, preferredVoice(), {
+      rate: '-10%', // Ligeramente pausado
+      pitch: '-5Hz' // Tono más grave
     });
-  }, 50);
-
+    
+    const result = await tts.synthesize();
+    
+    // Si el usuario cambió de pregunta mientras se descargaba, ignorar
+    if (currentId !== synthesisCounter) return true;
+    
+    const audioBlob = new Blob([result.audio], { type: 'audio/mpeg' });
+    const audioUrl = URL.createObjectURL(audioBlob);
+    
+    currentAudio = new Audio(audioUrl);
+    await currentAudio.play();
+    
+  } catch (error) {
+    console.error("Error en Edge TTS Neural, usando fallback local:", error);
+    if (currentId !== synthesisCounter) return true;
+    
+    // Fallback nativo robótico por si el usuario pierde conexión
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-MX';
+    utterance.rate = 0.85;
+    window.speechSynthesis.speak(utterance);
+  }
+  
   return true;
 }
