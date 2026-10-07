@@ -24,8 +24,12 @@ export function rankVoice(voice) {
     - (/(compact|e-speak|espeak|android|female|mujer)/.test(name) ? 15 : 0);
 }
 
+let cachedVoice = null;
+
 export function stopSpeech() {
-  if (speechAvailable()) window.speechSynthesis.cancel();
+  if (speechAvailable() && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
+    window.speechSynthesis.cancel();
+  }
 }
 
 export function setVoiceEnabled(enabled) {
@@ -33,16 +37,41 @@ export function setVoiceEnabled(enabled) {
   if (!enabled) stopSpeech();
 }
 
+function getBestVoice() {
+  if (cachedVoice) return cachedVoice;
+  const voices = availableSpanishVoices();
+  if (voices.length === 0) return null; // No cachear si aún no han cargado las voces
+  cachedVoice = voices.find(voice => voice.name === preferredVoice()) || voices.sort((a, b) => rankVoice(b) - rankVoice(a))[0] || null;
+  return cachedVoice;
+}
+
 export function readQuestion(question, { force = false } = {}) {
   if ((!voiceEnabled() && !force) || !speechAvailable() || !question) return false;
+  
   stopSpeech();
-  const options = question.options.map((option, index) => `Opción ${String.fromCharCode(65 + index)}... ${option}`).join('. ');
-  const utterance = new SpeechSynthesisUtterance(`${question.prompt}... ${options}`);
-  utterance.lang = 'es-PE';
-  utterance.rate = 0.82;
-  utterance.pitch = 0.9;
-  const voices = availableSpanishVoices();
-  utterance.voice = voices.find(voice => voice.name === preferredVoice()) || voices.sort((a, b) => rankVoice(b) - rankVoice(a))[0] || null;
-  window.speechSynthesis.speak(utterance);
+  
+  // Bugfix: Chrome a veces se cuelga si se hace speak inmediatamente tras cancel
+  setTimeout(() => {
+    const voiceToUse = getBestVoice();
+    
+    // Función ayudante para encolar fragmentos (evita que el motor TTS tarde en renderizar audios largos)
+    const speakChunk = (text) => {
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'es-PE';
+      utterance.rate = 0.85; // Un poco más natural, no tan exageradamente lento
+      utterance.pitch = 0.9;
+      if (voiceToUse) utterance.voice = voiceToUse;
+      window.speechSynthesis.speak(utterance);
+    };
+
+    // 1. Hablar la pregunta de inmediato (arranca rápido)
+    speakChunk(question.prompt);
+
+    // 2. Encolar las opciones
+    question.options.forEach((option, index) => {
+      speakChunk(`Opción ${String.fromCharCode(65 + index)}... ${option}`);
+    });
+  }, 50);
+
   return true;
 }
