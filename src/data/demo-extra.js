@@ -126,6 +126,41 @@ const questions = [
     explanation: 'Probar y evaluar una variante permite combinar inclusión, cooperación y propósito de aprendizaje.',
     optionExplanations: ['Correcta: adapta y comprueba el resultado.', 'Las reglas pueden ajustarse con criterio.', 'Sin observar no se sabe si la variante funciona.'],
   },
+  {
+    id: 'minedu-mov-1', topicId: 'movimiento',
+    prompt: 'Un docente tiene como propósito que los estudiantes de sexto grado evalúen sus frecuencias cardíacas. Les pide que corran a ritmo moderado durante 5 minutos y luego midan sus pulsaciones. ¿Cuál de las siguientes acciones pedagógicas es pertinente para lograr el propósito?',
+    options: ['Pedirles que anoten sus pulsaciones, explicarles la fórmula de la frecuencia máxima y dictarles qué hacer.', 'Preguntarles: "¿Por qué creen que sus pulsaciones han aumentado? ¿Qué relación tiene esto con la intensidad del esfuerzo?".', 'Agrupar a los estudiantes según sus pulsaciones y hacer correr más tiempo a los que tuvieron menos pulsaciones.'], correctIndex: 1,
+    explanation: 'El enfoque del MINEDU prioriza la reflexión del estudiante sobre su propio cuerpo y el esfuerzo físico.',
+    optionExplanations: ['Dictar fórmulas no fomenta la comprensión autónoma.', 'Correcta: Promueve la indagación y la consciencia corporal mediante preguntas reflexivas.', 'El castigo o aumento de carga sin análisis no es formativo.'],
+  },
+  {
+    id: 'minedu-conv-1', topicId: 'convivencia',
+    prompt: 'Durante un juego de "Balón torre", un equipo pierde constantemente porque dos integrantes más altos monopolizan el balón. ¿Qué intervención promueve mejor la inclusión y el trabajo en equipo?',
+    options: ['Detener el juego e introducir la regla: "El punto solo es válido si todos los integrantes han tocado el balón previamente".', 'Cambiar de equipo a los estudiantes más altos para equilibrar los grupos y asegurar la competitividad.', 'Explicarles que deben ser solidarios y reprender a los estudiantes altos frente al grupo.'], correctIndex: 0,
+    explanation: 'Modificar la regla del juego obliga a los estudiantes a colaborar tácticamente por necesidad lúdica, fomentando la inclusión natural.',
+    optionExplanations: ['Correcta: El ajuste de reglas propicia la participación de todos.', 'Cambiar equipos no resuelve la actitud excluyente.', 'Reprender públicamente no construye una habilidad sociomotriz.'],
+  },
+  {
+    id: 'minedu-mov-2', topicId: 'movimiento',
+    prompt: 'El docente observa que, al realizar un salto de longitud, un estudiante aterriza con las piernas completamente rígidas. ¿Qué retroalimentación es más pertinente para ayudarlo y prevenir lesiones?',
+    options: ['Demostrarle el salto correcto y exigirle que lo repita hasta que lo haga idéntico al modelo.', 'Sugerirle que, al aterrizar, intente flexionar las rodillas "como si fuera un resorte" para amortiguar la caída.', 'Felicitarlo por el esfuerzo y dejar que con el tiempo su cuerpo aprenda a caer correctamente por instinto.'], correctIndex: 1,
+    explanation: 'La retroalimentación descriptiva y el uso de analogías ayudan al estudiante a ajustar su esquema motor con seguridad.',
+    optionExplanations: ['Exigir repetición sin dar pautas del error puede causar lesiones.', 'Correcta: Brinda una instrucción clara, preventiva y fácil de visualizar.', 'Ignorar una técnica lesiva es negligencia pedagógica.'],
+  },
+  {
+    id: 'minedu-plan-1', topicId: 'planificacion',
+    prompt: 'Una docente desea evaluar de manera formativa la capacidad de sus estudiantes para crear una secuencia de movimientos rítmicos en grupo. ¿Qué instrumento es el más pertinente?',
+    options: ['Un examen escrito sobre los nombres de los pasos de baile y la historia del ritmo.', 'Una lista de cotejo que evalúe si todos los estudiantes realizan el mismo movimiento exactamente al mismo tiempo.', 'Una rúbrica compartida previamente que describa los niveles de fluidez, coordinación y aporte creativo al grupo.'], correctIndex: 2,
+    explanation: 'La evaluación formativa requiere instrumentos que comuniquen los criterios de éxito previamente y valoren el proceso integral.',
+    optionExplanations: ['Evalúa conocimientos teóricos, no la capacidad rítmica grupal.', 'El unísono estricto no evalúa creatividad ni el proceso grupal.', 'Correcta: Rúbrica con criterios explícitos y formativos.'],
+  },
+  {
+    id: 'minedu-conv-2', topicId: 'convivencia',
+    prompt: 'Dos estudiantes discuten acaloradamente porque uno acusa al otro de haber hecho trampa en una carrera. ¿Qué acción pedagógica promueve la resolución autónoma de conflictos?',
+    options: ['Acercarse, escucharlos, y pedirles que identifiquen juntos una alternativa de solución para continuar la clase.', 'Retirar a ambos del juego temporalmente para que reflexionen sobre su mal comportamiento en silencio.', 'Decidir quién tiene la razón basándose en lo que observó el docente y exigir una disculpa inmediata.'], correctIndex: 0,
+    explanation: 'El CNEB busca que los estudiantes interactúen a través de habilidades sociomotrices, incluyendo la mediación y acuerdo en conflictos.',
+    optionExplanations: ['Correcta: El docente actúa como mediador, pero la solución es de los estudiantes.', 'El aislamiento no enseña a resolver el conflicto social.', 'Imponer la razón anula la oportunidad de diálogo y reflexión.'],
+  }
 ];
 
 export const extraQuestions = questions.map(question => ({ ...question, source: 'Contenido original de demostración', year: 2026, isDemo: true }));
