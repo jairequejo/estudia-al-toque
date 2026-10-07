@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 const buildId = new Date().toISOString()
 
 export default defineConfig({
-  base: './',
+  base: '/estudia-al-toque/',
   define: { __APP_BUILD__: JSON.stringify(buildId) },
   plugins: [{
     name: 'pwa-versioned-worker',
